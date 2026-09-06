@@ -40,7 +40,18 @@ DY_SPECIFIED_ID_LIST = [
 # 1. Complete creator homepage URL: "https://www.douyin.com/user/MS4wLjABAAAATJPY7LAlaa5X-c8uNdWkvz0jUGgpw4eeXIwu_8BhvqE?from_tab_name=main"
 # 2. sec_user_id: "MS4wLjABAAAATJPY7LAlaa5X-c8uNdWkvz0jUGgpw4eeXIwu_8BhvqE"
 DY_CREATOR_ID_LIST = [
+    # 碳基生物退役指南
+    "https://www.douyin.com/user/MS4wLjABAAAAK_l8DyxHSOvnQUm0vX0NmX2MjK1v8ducL-xNDpYkfgJloxUuJxfFNxThsQFglGex?from_tab_name=main&vid=7679020018859871523",
+    # 程序员阿江-Relakkes
     "https://www.douyin.com/user/MS4wLjABAAAATJPY7LAlaa5X-c8uNdWkvz0jUGgpw4eeXIwu_8BhvqE?from_tab_name=main",
-    "MS4wLjABAAAATJPY7LAlaa5X-c8uNdWkvz0jUGgpw4eeXIwu_8BhvqE"
     # ........................
+]
+DY_CREATOR_ID_LIST_new = [
+    {
+        "user_name": "碳基生物退役指南",
+        "url": "https://www.douyin.com/user/MS4wLjABAAAAK_l8DyxHSOvnQUm0vX0NmX2MjK1v8ducL-xNDpYkfgJloxUuJxfFNxThsQFglGex?from_tab_name=main&vid=7679020018859871523"
+    }, {
+        "user_name": "程序员阿江-Relakkes",
+        "url": "https://www.douyin.com/user/MS4wLjABAAAATJPY7LAlaa5X-c8uNdWkvz0jUGgpw4eeXIwu_8BhvqE?from_tab_name=main"
+    }
 ]

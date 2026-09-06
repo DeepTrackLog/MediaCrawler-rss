@@ -25,6 +25,7 @@ import asyncio
 import os
 import sys
 import subprocess
+from contextlib import asynccontextmanager
 from pathlib import Path
 import uvicorn
 from fastapi import FastAPI
@@ -32,15 +33,43 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse
 
-from .routers import crawler_router, data_router, websocket_router
+try:
+    from .routers import crawler_router, data_router, websocket_router, rss_router, scheduler_router
+except ImportError:
+    # 直接以脚本方式运行（python api/main.py / PyCharm Run）时没有包上下文，
+    # 回退到绝对导入，并把项目根目录加入 sys.path
+    sys.path.insert(0, str(Path(__file__).parent.parent))
+    from api.routers import crawler_router, data_router, websocket_router, rss_router, scheduler_router
 
 # Project root directory (used for running subprocesses like uv run main.py)
 PROJECT_ROOT = Path(__file__).parent.parent
 
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    """FastAPI lifespan: 启动 / 关闭 scheduler + 其他服务。"""
+    # startup
+    try:
+        from services.scheduler_service_v2 import scheduler_service_v2
+        await scheduler_service_v2.start()
+    except Exception as e:
+        # 不让 scheduler 异常阻塞整个 API 启动（RSS / 手动爬仍可用）
+        import sys as _s
+        print(f"[main] scheduler_service_v2.start failed (非致命): {e}", file=_s.stderr)
+    yield
+    # shutdown
+    try:
+        from services.scheduler_service_v2 import scheduler_service_v2
+        await scheduler_service_v2.shutdown()
+    except Exception:
+        pass
+
+
 app = FastAPI(
     title="MediaCrawler WebUI API",
     description="API for controlling MediaCrawler from WebUI",
-    version="1.0.0"
+    version="1.0.0",
+    lifespan=lifespan,
 )
 
 # Get webui static files directory
@@ -64,6 +93,8 @@ app.add_middleware(
 app.include_router(crawler_router, prefix="/api")
 app.include_router(data_router, prefix="/api")
 app.include_router(websocket_router, prefix="/api")
+app.include_router(rss_router, prefix="/api")
+app.include_router(scheduler_router, prefix="/api")
 
 
 @app.get("/")
@@ -161,6 +192,15 @@ async def get_platforms():
             {"value": "zhihu", "label": "Zhihu", "icon": "help-circle"},
         ]
     }
+
+@app.get("/api/trigger/platforms")
+async def trigger_platforms():
+    print("方法被调用")
+    from services.scheduler_service_v2 import scheduler_service_v2
+    await scheduler_service_v2._cron_entry()
+    return "OK"
+
+
 
 
 @app.get("/api/config/options")

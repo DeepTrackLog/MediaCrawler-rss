@@ -24,7 +24,7 @@
 # 创作者个人档案表（XhsCreator/DyCreator/WeiboCreator/TiebaCreator/
 # ZhihuCreator/BilibiliUpInfo/BilibiliContactInfo）已整体移除。
 
-from sqlalchemy import create_engine, Column, Integer, Text, String, BigInteger
+from sqlalchemy import create_engine, Column, Integer, Text, String, BigInteger, UniqueConstraint
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker
 
@@ -301,3 +301,42 @@ class ZhihuComment(Base):
     user_nickname = Column(Text, comment='用户昵称(已脱敏)')
     add_ts = Column(BigInteger, comment='添加时间戳')
     last_modify_ts = Column(BigInteger, comment='最后修改时间戳')
+
+
+class MediaCrawlerConfig(Base):
+    """目标创作者配置表（替代 *_CREATOR_ID_LIST* 硬编码）"""
+    __tablename__ = 'media_crawler_config'
+    id          = Column(BigInteger, primary_key=True, comment='主键ID')
+    platform    = Column(String(16), nullable=False, index=True, comment='平台 dy/xhs/bili/zhihu/wb/ks/tieba')
+    user_name   = Column(String(255), nullable=False, default='', comment='展示/日志用博主名称')
+    url         = Column(Text,   comment='主页完整URL或纯ID，与旧 *_CREATOR_ID_LIST 元素语义一致')
+    enabled     = Column(Integer,  default=1, comment='1=启用 0=停用；停用的不参与调度')
+    sort_order  = Column(Integer,  default=0, comment='执行顺序（小的先跑）')
+    tags        = Column(String(512), default='', comment='逗号分隔标签')
+    remark      = Column(String(512), default='', comment='备注')
+    created_at  = Column(BigInteger,   comment='创建时间戳')
+    updated_at  = Column(BigInteger,  comment='最后更新时间戳')
+
+    # __table_args__ = (
+    #     UniqueConstraint('platform', 'url', name='uk_platform_url_config'),
+    # )
+
+
+class MediaCreatorMeta(Base):
+    """创作者聚合元信息（内容表 creator_hash ↔ 人可读信息的映射，支撑 RSS 按博主 Feed）"""
+    __tablename__ = 'media_creator_meta'
+    id              = Column(Integer, primary_key=True, autoincrement=True, comment='主键ID')
+    platform        = Column(String(16), nullable=False, comment='平台')
+    creator_hash    = Column(String(64), nullable=False, index=True, comment='匿名哈希，来自 anonymize_user_id()')
+    nickname_masked = Column(String(255), nullable=False, default='', comment='已脱敏昵称，来自 mask_nickname()')
+    user_name       = Column(String(255), nullable=False, default='', comment='爬虫配置中配置的博主名称（非脱敏）')
+    config_id       = Column(Integer, nullable=True, index=True, comment='外键 media_crawler_config.id；search 模式来源时为 NULL')
+    profile_url     = Column(Text, nullable=True, comment='可选缓存的主页 URL')
+    content_count   = Column(Integer, nullable=False, default=0, comment='已抓到的该创作者内容条数（冗余统计）')
+    first_seen_ts   = Column(BigInteger, nullable=False, comment='首次发现时间戳')
+    last_seen_ts    = Column(BigInteger, nullable=False, comment='最后发现时间戳')
+
+    # __table_args__ = (
+    #     UniqueConstraint('platform', 'creator_hash', name='uk_platform_hash_meta'),
+    # )
+

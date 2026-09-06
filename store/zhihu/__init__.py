@@ -84,6 +84,20 @@ async def update_zhihu_content(content_item: ZhihuContent):
     utils.logger.info(f"[store.zhihu.update_zhihu_content] zhihu content: {local_db_item}")
     await ZhihuStoreFactory.create_store().store_content(local_db_item)
 
+    # ====== 同步写入创作者聚合映射（RSS 按博主 Feed 使用）======
+    creator_hash = local_db_item.get("creator_hash")
+    if creator_hash:
+        # 知乎：现有 Pydantic 模型不含原始作者主页 URL；user_name/config_id 先空，后续可通过管理端手动补。
+        user_name, config_id = await creator_meta_service.lookup_config_info("zhihu", "")
+        await creator_meta_service.upsert(
+            platform="zhihu",
+            creator_hash=creator_hash,
+            nickname_masked=local_db_item.get("user_nickname") or "",
+            user_name=user_name,
+            config_id=config_id,
+            profile_url=None,
+        )
+
 
 
 async def batch_update_zhihu_note_comments(comments: List[ZhihuComment]):

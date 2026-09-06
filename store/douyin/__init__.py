@@ -29,6 +29,7 @@ from tools.user_hash import anonymize_user_id, mask_nickname
 
 from ._store_impl import *
 from .douyin_store_media import *
+from services.creator_meta_service import creator_meta_service
 
 
 class DouyinStoreFactory:
@@ -41,13 +42,14 @@ class DouyinStoreFactory:
         "sqlite": DouyinSqliteStoreImplement,
         "mongodb": DouyinMongoStoreImplement,
         "excel": DouyinExcelStoreImplement,
+        "rest": DouyinRestStoreImplement,
     }
 
     @staticmethod
     def create_store() -> AbstractStore:
         store_class = DouyinStoreFactory.STORES.get(config.SAVE_DATA_OPTION)
         if not store_class:
-            raise ValueError("[DouyinStoreFactory.create_store] Invalid save option only supported csv or db or json or sqlite or mongodb or excel ...")
+            raise ValueError("[DouyinStoreFactory.create_store] Invalid save option only supported csv or db or json or jsonl or sqlite or mongodb or excel or rest ...")
         return store_class()
 
 
@@ -179,8 +181,24 @@ async def update_douyin_aweme(aweme_item: Dict):
         "note_download_url": ",".join(_extract_note_image_list(aweme_item)),
         "source_keyword": source_keyword_var.get(),
     }
+    utils.logger.info(f"开始存储")
     utils.logger.info(f"[store.douyin.update_douyin_aweme] douyin aweme id:{aweme_id}, title:{save_content_item.get('title')}")
     await DouyinStoreFactory.create_store().store_content(content_item=save_content_item)
+
+    # ====== 同步写入创作者聚合映射（RSS 按博主 Feed 使用）======
+    creator_hash = save_content_item.get("creator_hash")
+    if creator_hash:
+        sec_uid = (aweme_item.get("author") or {}).get("sec_uid") or ""
+        profile_url = f"https://www.douyin.com/user/{sec_uid}" if sec_uid else ""
+        user_name, config_id = await creator_meta_service.lookup_config_info("dy", profile_url or "")
+        await creator_meta_service.upsert(
+            platform="dy",
+            creator_hash=creator_hash,
+            nickname_masked=save_content_item.get("nickname") or "",
+            user_name=user_name,
+            config_id=config_id,
+            profile_url=profile_url or None,
+        )
 
 
 async def batch_update_dy_aweme_comments(aweme_id: str, comments: List[Dict]):

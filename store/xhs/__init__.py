@@ -130,6 +130,21 @@ async def update_xhs_note(note_item: Dict):
     utils.logger.info(f"[store.xhs.update_xhs_note] xhs note: {local_db_item}")
     await XhsStoreFactory.create_store().store_content(local_db_item)
 
+    # ====== 同步写入创作者聚合映射（RSS 按博主 Feed 使用）======
+    creator_hash = local_db_item.get("creator_hash")
+    if creator_hash:
+        user_id = (note_item.get("user") or {}).get("user_id") or ""
+        profile_url = f"https://www.xiaohongshu.com/user/profile/{user_id}" if user_id else ""
+        user_name, config_id = await creator_meta_service.lookup_config_info("xhs", profile_url or "")
+        await creator_meta_service.upsert(
+            platform="xhs",
+            creator_hash=creator_hash,
+            nickname_masked=local_db_item.get("nickname") or "",
+            user_name=user_name,
+            config_id=config_id,
+            profile_url=profile_url or None,
+        )
+
 
 async def batch_update_xhs_note_comments(note_id: str, comments: List[Dict]):
     """

@@ -18,7 +18,8 @@
 # 使用本代码即表示您同意遵守上述原则和LICENSE中的所有条款。
 
 # Basic configuration
-PLATFORM = "xhs"  # Platform, xhs | dy | ks | bili | wb | tieba | zhihu
+# PLATFORM = "xhs"  # Platform, xhs | dy | ks | bili | wb | tieba | zhihu
+PLATFORM = "dy"  # Platform, xhs | dy | ks | bili | wb | tieba | zhihu
 
 # 是否使用海外版小红书 (rednote.com)
 # 开启后 API 走 webapi.rednote.com，cookie 域使用 .rednote.com
@@ -28,7 +29,8 @@ KEYWORDS = "编程副业,编程兼职"  # Keyword search configuration, separate
 LOGIN_TYPE = "qrcode"  # qrcode or phone or cookie
 COOKIES = ""
 CRAWLER_TYPE = (
-    "search"  # Crawling type, search (keyword search) | detail (post details) | creator (creator homepage data)
+    # "search"  # Crawling type, search (keyword search) | detail (post details) | creator (creator homepage data)
+    "creator"  # Crawling type, search (keyword search) | detail (post details) | creator (creator homepage data)
 )
 # Whether to enable IP proxy
 ENABLE_IP_PROXY = False
@@ -86,8 +88,8 @@ CDP_CONNECT_EXISTING = True
 # 设置为 False 可以保持浏览器运行，方便调试
 AUTO_CLOSE_BROWSER = True
 
-# Data saving type option configuration, supports: csv, db, json, jsonl, sqlite, excel, postgres. It is best to save to DB, with deduplication function.
-SAVE_DATA_OPTION = "jsonl"  # csv or db or json or jsonl or sqlite or excel or postgres
+# Data saving type option configuration, supports: csv, db, json, jsonl, sqlite, excel, postgres, rest. It is best to save to DB, with deduplication function.
+SAVE_DATA_OPTION = "db"  # csv or db or json or jsonl or sqlite or excel or postgres or rest
 
 # Data saving path, if not specified by default, it will be saved to the data folder.
 SAVE_DATA_PATH = ""
@@ -139,6 +141,64 @@ CRAWLER_MAX_SLEEP_SEC = 2
 # 是否禁用 SSL 证书验证。仅在使用企业代理、Burp Suite、mitmproxy 等会注入自签名证书的中间人代理时设为 True。
 # 警告：禁用 SSL 验证将使所有流量暴露于中间人攻击风险，请勿在生产环境中开启。
 DISABLE_SSL_VERIFY = False
+
+# ==================== REST Store 配置 ====================
+# 当 SAVE_DATA_OPTION = "rest" 时生效。把抓取数据通过 HTTP POST 推送到第三方聚合服务
+# （该服务独立部署，提供 PostgreSQL 存储 + RSS feed 输出）。
+REST_STORE_BASE_URL = ""                # 第三方服务地址，如 https://mediacrawler-feed.example.com
+REST_STORE_API_KEY = ""                 # Bearer Token，写入 Authorization header
+REST_STORE_TIMEOUT = 10.0               # 单次请求超时（秒）
+REST_STORE_SSL_VERIFY = None            # None=跟随全局 DISABLE_SSL_VERIFY；True/False=单独覆盖
+
+# ==================== RSS Feed 输出配置 ====================
+# 是否启用 RSS 接口（即使没开 DB 存储也能返回空数据，不报错）
+RSS_FEED_ENABLED = True
+# miniflux 识别用的自链接域名（填对外可访问的 host，如 "https://mc-rss.example.com"）
+RSS_FEED_PUBLIC_BASE_URL = "http://localhost:8080"
+# 单 feed 返回最大条数（miniflux 默认拉 50-100，过大占 DB）
+RSS_FEED_MAX_ITEMS = 50
+# 可选接口访问 API Key；留空 = 不鉴权
+RSS_FEED_API_KEY = ""
+# miniflux 刷新周期建议值（写入 RSS <ttl>，单位分钟）
+RSS_FEED_TTL_MINUTES = 60
+
+# ==================== 定时调度配置 v2（4 平台双时点）====================
+# 是否启用调度器（CLI 模式单跑时可关掉）
+SCHEDULER_ENABLED = True
+
+# 调度器持久化存储类型："memory" | "json" | "sqlalchemy"
+SCHEDULER_JOBSTORE = "sqlalchemy"
+# JSON 存储路径（SCHEDULER_JOBSTORE=json 时）
+SCHEDULER_JSON_PATH = "./cache/scheduler_jobs.json"
+# SQLAlchemy 连接串（SCHEDULER_JOBSTORE=sqlalchemy 时），默认复用 SAVE_DATA_OPTION 的 DB
+SCHEDULER_DB_URL = ""
+
+# 两个触发时点（北京时间）。格式：分 时 日 月 周（cron 5 段）
+SCHEDULER_DAILY_CRONS = [
+    "0 6 * * *",   # 每天 06:00
+    "0 7 * * *",   # 每天 07:00
+]
+
+# 执行顺序（串行，避免并发浏览器被风控）
+SCHEDULER_PLATFORM_ORDER = ["dy", "bili", "xhs", "zhihu"]
+
+# 单平台爬虫最多跑多久（小时），超时自动 SIGTERM → SIGKILL
+SCHEDULER_CRAWL_TIMEOUT_HOURS = 5
+
+# 两平台之间的冷却时间（秒）
+SCHEDULER_BETWEEN_PLATFORM_SLEEP_SEC = 300
+
+# 调度时爬虫默认参数（定时任务专用）
+SCHEDULER_CRAWLER_DEFAULTS = {
+    "login_type":           "cookie",   # 必须是已登录过的 cookie 模式，否则每次要扫码
+    "crawler_type":         "creator",
+    "save_option":          "jsonl",    # 部署时建议改成 db/postgres，方便 RSS 查
+    "headless":             False,       # 定时任务默认无头
+    "enable_comments":      False,
+    "enable_sub_comments":  False,
+    "max_notes_count":      20,
+    "max_comments_count":   50,
+}
 
 from .bilibili_config import *
 from .xhs_config import *

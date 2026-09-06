@@ -45,6 +45,7 @@ from media_platform.xhs import XiaoHongShuCrawler
 from media_platform.zhihu import ZhihuCrawler
 from tools.async_file_writer import AsyncFileWriter
 from var import crawler_type_var
+from services.creator_config_db_provider import creator_config_db_provider
 
 
 class CrawlerFactory:
@@ -109,6 +110,14 @@ async def main() -> None:
     # 数据库保存模式下自动建表，避免首次运行时出现 no such table 错误
     if config.SAVE_DATA_OPTION in ("sqlite", "mysql", "db", "postgres"):
         await db.init_db(config.SAVE_DATA_OPTION)
+
+    # 从 media_crawler_config 表读取平台创作者列表并写回到配置变量
+    # （无论手动执行 main.py 还是 Scheduler 通过 subprocess 调用，都能保证 DB 配置生效）
+    try:
+        await creator_config_db_provider.load_and_apply(config.PLATFORM)
+    except Exception as e:
+        from tools import utils as _u
+        _u.logger.warning(f"[Main] load creator_config from DB failed: {e}（将回退到硬编码配置）")
 
     crawler = CrawlerFactory.create_crawler(platform=config.PLATFORM)
     await crawler.start()

@@ -2,7 +2,7 @@
 # Copyright (c) 2025 relakkes@gmail.com
 #
 # This file is part of MediaCrawler project.
-# Repository: https://github.com/NanmiCoder/MediaCrawler/blob/main/api/routers/__init__.py
+# Repository: https://github.com/NanmiCoder/MediaCrawler/blob/main/services/__init__.py
 # GitHub: https://github.com/NanmiCoder
 # Licensed under NON-COMMERCIAL LEARNING LICENSE 1.1
 #
@@ -15,11 +15,3 @@
 #
 # 详细许可条款请参阅项目根目录下的LICENSE文件。
 # 使用本代码即表示您同意遵守上述原则和LICENSE中的所有条款。
-
-from .crawler import router as crawler_router
-from .data import router as data_router
-from .websocket import router as websocket_router
-from .rss import router as rss_router
-from .scheduler_v2 import router as scheduler_router
-
-__all__ = ["crawler_router", "data_router", "websocket_router", "rss_router", "scheduler_router"]

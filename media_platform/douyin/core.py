@@ -20,6 +20,7 @@
 import asyncio
 import os
 import random
+import time
 from asyncio import Task
 from typing import Any, Dict, List, Optional, Tuple
 
@@ -120,6 +121,7 @@ class DouYinCrawler(AbstractCrawler):
                 await self.get_specified_awemes()
             elif config.CRAWLER_TYPE == "creator":
                 # Get the information and comments of the specified creator
+                # 博主
                 await self.get_creators_and_videos()
 
             utils.logger.info("[DouYinCrawler.start] Douyin Crawler finished ...")
@@ -274,11 +276,15 @@ class DouYinCrawler(AbstractCrawler):
         utils.logger.info("[DouYinCrawler.get_creators_and_videos] Begin get douyin creators")
         utils.logger.info("[DouYinCrawler.get_creators_and_videos] Parsing creator URLs...")
 
-        for creator_url in config.DY_CREATOR_ID_LIST:
+
+        # 遍历所有的拉取信息
+        # for creator_url in config.DY_CREATOR_ID_LIST:
+        # 回复使用老的接口
+        for creator in config.DY_CREATOR_ID_LIST_new:
             try:
-                creator_info_parsed = parse_creator_info_from_url(creator_url)
+                creator_info_parsed = parse_creator_info_from_url(creator['url'])
                 user_id = creator_info_parsed.sec_user_id
-                utils.logger.info(f"[DouYinCrawler.get_creators_and_videos] Parsed sec_user_id: {user_id} from {creator_url}")
+                utils.logger.info(f"[DouYinCrawler.get_creators_and_videos] Parsed sec_user_id: {user_id} from {creator['url']}")
             except ValueError as e:
                 utils.logger.error(f"[DouYinCrawler.get_creators_and_videos] Failed to parse creator URL: {e}")
                 continue
@@ -288,10 +294,14 @@ class DouYinCrawler(AbstractCrawler):
                 await douyin_store.save_creator(user_id, creator=creator_info)
 
             # Get all video information of the creator
-            all_video_list = await self.dy_client.get_all_user_aweme_posts(sec_user_id=user_id, callback=self.fetch_creator_video_detail)
-
+            try:
+                #  同时进行存储
+                all_video_list = await self.dy_client.get_all_user_aweme_posts(sec_user_id=user_id, callback=self.fetch_creator_video_detail)
+            except Exception as e:
+                utils.logger.error(f"失败..略过: {e}")
+                continue
             video_ids = [video_item.get("aweme_id") for video_item in all_video_list]
-            await self.batch_get_note_comments(video_ids)
+            # await self.batch_get_note_comments(video_ids)
 
     async def fetch_creator_video_detail(self, video_list: List[Dict]):
         """
@@ -303,6 +313,10 @@ class DouYinCrawler(AbstractCrawler):
         note_details = await asyncio.gather(*task_list)
         for aweme_item in note_details:
             if aweme_item is not None:
+                # 随机休眠2-4秒
+                ran = random.randrange(2, 5)
+                time.sleep(ran)
+                # 进行存储
                 await douyin_store.update_douyin_aweme(aweme_item=aweme_item)
                 await self.get_aweme_media(aweme_item=aweme_item)
 

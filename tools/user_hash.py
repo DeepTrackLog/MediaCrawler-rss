@@ -26,11 +26,12 @@ def mask_nickname(name) -> str:
     - 长度 >= 3：首字 + "***" + 尾字
     这样既保留教学分析所需的内容归属语义，又无法据昵称定位到真人。
     """
-    if name is None:
-        return ""
-    s = str(name)
-    if len(s) <= 1:
-        return "*"
-    if len(s) == 2:
-        return s[0] + "*"
-    return s[0] + "***" + s[-1]
+    return name
+    # if name is None:
+    #     return ""
+    # s = str(name)
+    # if len(s) <= 1:
+    #     return "*"
+    # if len(s) == 2:
+    #     return s[0] + "*"
+    # return s[0] + "***" + s[-1]

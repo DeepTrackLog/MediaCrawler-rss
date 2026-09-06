@@ -81,6 +81,21 @@ async def update_bilibili_video(video_item: Dict):
     utils.logger.info(f"[store.bilibili.update_bilibili_video] bilibili video id:{video_id}, title:{save_content_item.get('title')}")
     await BiliStoreFactory.create_store().store_content(content_item=save_content_item)
 
+    # ====== 同步写入创作者聚合映射（RSS 按博主 Feed 使用）======
+    creator_hash = save_content_item.get("creator_hash")
+    if creator_hash:
+        mid = str((video_item_view.get("owner") or {}).get("mid") or "")
+        # BILI_CREATOR_ID_LIST 支持传纯 UID，直接用 UID 去查 media_crawler_config.url
+        user_name, config_id = await creator_meta_service.lookup_config_info("bili", mid)
+        await creator_meta_service.upsert(
+            platform="bili",
+            creator_hash=creator_hash,
+            nickname_masked=save_content_item.get("nickname") or "",
+            user_name=user_name,
+            config_id=config_id,
+            profile_url=f"https://space.bilibili.com/{mid}" if mid else None,
+        )
+
 
 async def update_up_info(video_item: Dict):
     # 教学版：UP 主个人资料(昵称/性别/签名/头像/粉丝数等)不再落库，防骚扰。

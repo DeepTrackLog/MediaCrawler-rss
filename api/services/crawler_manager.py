@@ -24,6 +24,7 @@ from typing import Optional, List
 from datetime import datetime
 from pathlib import Path
 
+from services.creator_config_db_provider import creator_config_db_provider
 from ..schemas import CrawlerStartRequest, LogEntry
 
 
@@ -109,6 +110,11 @@ class CrawlerManager:
                         self._log_queue.get_nowait()
                 except asyncio.QueueEmpty:
                     pass
+
+            # 从 DB media_crawler_config 加载该平台创作者配置，回填主进程全局 config。
+            # 注：子进程真正运行 main.py 时也会再次调用 load_and_apply（保证即使不通过 manager 启动也能拿到）。
+            # 此处为调度器提供空配置跳过的前置判断依据，并确保主进程侧配置与实际执行一致。
+            await creator_config_db_provider.load_and_apply(config.platform.value)
 
             # Build command line arguments
             cmd = self._build_command(config)

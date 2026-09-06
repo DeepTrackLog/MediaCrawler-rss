@@ -20,6 +20,7 @@
 import asyncio
 import copy
 import json
+import time
 import urllib.parse
 from typing import TYPE_CHECKING, Any, Callable, Dict, Union, Optional
 
@@ -123,14 +124,18 @@ class DouYinClient(AbstractApiClient, ProxyRefreshMixin):
     async def request(self, method, url, **kwargs):
         # Check whether the proxy has expired before each request
         await self._refresh_proxy_if_expired()
-
+        utils.logger.error(f"请求的URL:{url} ,{kwargs}")
         async with make_async_client(proxy=self.proxy) as client:
             response = await client.request(method, url, timeout=self.timeout, **kwargs)
         try:
             if response.text == "" or response.text == "blocked":
                 utils.logger.error(f"request params incrr, response.text: {response.text}")
                 raise Exception("account blocked")
-            return response.json()
+            # try:
+            #     response.json()
+            # except Exception as e:
+            #     utils.logger.error(f"返回的异常的:{response} ")
+            return  response.json()
         except Exception as e:
             raise DataFetchError(f"{e}, {response.text}")
 
@@ -322,7 +327,7 @@ class DouYinClient(AbstractApiClient, ProxyRefreshMixin):
         uri = "/aweme/v1/web/aweme/post/"
         params = {
             "sec_user_id": sec_user_id,
-            "count": 18,
+            "count": 10,
             "max_cursor": max_cursor,
             "locate_query": "false",
             "publish_video_strategy_type": 2,
@@ -333,15 +338,16 @@ class DouYinClient(AbstractApiClient, ProxyRefreshMixin):
         posts_has_more = 1
         max_cursor = ""
         result = []
-        while posts_has_more == 1:
-            aweme_post_res = await self.get_user_aweme_posts(sec_user_id, max_cursor)
-            posts_has_more = aweme_post_res.get("has_more", 0)
-            max_cursor = aweme_post_res.get("max_cursor")
-            aweme_list = aweme_post_res.get("aweme_list") if aweme_post_res.get("aweme_list") else []
-            utils.logger.info(f"[DouYinClient.get_all_user_aweme_posts] get sec_user_id:{sec_user_id} video len : {len(aweme_list)}")
-            if callback:
-                await callback(aweme_list)
-            result.extend(aweme_list)
+        # while posts_has_more == 1:
+        aweme_post_res = await self.get_user_aweme_posts(sec_user_id, max_cursor)
+        posts_has_more = aweme_post_res.get("has_more", 0)
+        # 只取最新的一页就可以。
+        # max_cursor = aweme_post_res.get("max_cursor")
+        aweme_list = aweme_post_res.get("aweme_list") if aweme_post_res.get("aweme_list") else []
+        utils.logger.info(f"[DouYinClient.get_all_user_aweme_posts] get sec_user_id:{sec_user_id} video len : {len(aweme_list)}")
+        if callback:
+            await callback(aweme_list)
+        result.extend(aweme_list)
         return result
 
     async def get_aweme_media(self, url: str) -> Union[bytes, None]:
